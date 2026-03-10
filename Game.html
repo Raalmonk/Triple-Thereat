@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Triple Threat - Strategy Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&family=JetBrains+Mono&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #fdfbf7; /* Beige background */
+            user-select: none;
+            color: #4a4a4a;
+        }
+
+        /* Base cell styling */
+        .cell {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            border-radius: 24px;
+            background-color: #ffffff;
+            border: 2px solid #f0ede4;
+        }
+
+        /* Mint green pieces */
+        .cell-ai {
+            background-color: #e8f5e9 !important; 
+            border: 3px solid #a5d6a7 !important; 
+            box-shadow: 0 8px 16px rgba(165, 214, 167, 0.2);
+            z-index: 10;
+        }
+
+        /* Visual indicator for "old" pieces that cannot be removed */
+        .cell-ai.permanent {
+            background-color: #f1f8f1 !important;
+            border: 3px solid #cfdfcf !important;
+            box-shadow: none;
+            opacity: 0.9;
+        }
+
+        .cell-empty:hover {
+            background-color: #fcfaf2;
+            border-color: #e8f5e9;
+        }
+
+        /* Victory line */
+        .line-win {
+            background-color: #2e7d32 !important;
+            border: 4px solid #ffffff !important;
+            box-shadow: 0 0 30px rgba(46, 125, 50, 0.3);
+            animation: soft-pulse 1.5s infinite;
+        }
+
+        @keyframes soft-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(0.98); }
+        }
+
+        .ai-step-indicator {
+            font-size: 32px;
+            color: #81c784;
+            font-weight: 900;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+
+        /* Custom scrollbar hiding */
+        #log-container::-webkit-scrollbar { display: none; }
+        #log-container { scrollbar-width: none; }
+
+        .glass-card {
+            background: #ffffff;
+            border: 2px solid #f0ede4;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+        }
+
+        /* Expansion animation */
+        #log-panel {
+            transition: max-height 0.4s ease-out;
+            max-height: 0;
+            overflow: hidden;
+        }
+        #log-panel.open {
+            max-height: 400px;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-6">
+
+    <div class="w-full max-w-lg mx-auto">
+        <!-- Main Interface -->
+        <div class="text-center mb-10">
+            <!-- Large Round Counter -->
+            <div class="inline-block px-8 py-3 bg-green-50 rounded-full border-2 border-green-100 mb-4">
+                <span class="text-xs font-black text-green-600 uppercase tracking-[0.2em] block mb-1">Current Progress</span>
+                <span id="round-display" class="text-5xl font-black text-green-700">ROUND 0</span>
+            </div>
+            <h1 class="text-2xl font-black tracking-tight text-slate-800 uppercase mt-2">Triple Threat</h1>
+            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Strategic Defense Challenge</p>
+        </div>
+
+        <!-- Status Bar -->
+        <div id="status-bar" class="glass-card mb-6 p-6 rounded-[2.5rem] text-center font-bold text-lg transition-all text-slate-500">
+            Initializing System...
+        </div>
+
+        <!-- 3x3 Grid -->
+        <div id="board" class="grid grid-cols-3 gap-5 bg-[#f0ede4] p-6 rounded-[3rem] aspect-square mb-10 shadow-inner">
+            <!-- Generated via JS -->
+        </div>
+
+        <!-- Controls -->
+        <div class="flex flex-col gap-4">
+            <button id="reset-btn" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-5 rounded-3xl font-black text-xl transition-all shadow-lg active:scale-95">
+                RESTART GAME
+            </button>
+            
+            <!-- Log Toggle -->
+            <button id="toggle-log" class="text-xs font-bold text-slate-400 hover:text-slate-600 flex items-center justify-center gap-2 transition-colors py-2">
+                <span>Show System Log (Debug)</span>
+                <svg id="log-arrow" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Hidden Log Panel -->
+        <div id="log-panel" class="mt-6 bg-white border-2 border-[#f0ede4] rounded-[2rem] shadow-sm">
+            <div id="log-container" class="p-6 h-64 overflow-y-auto space-y-2 text-slate-400 font-mono text-[10px]">
+                <!-- Logs here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Modal -->
+    <div id="modal" class="fixed inset-0 bg-slate-900/10 backdrop-blur-md flex items-center justify-center hidden z-50">
+        <div class="bg-white p-12 rounded-[3.5rem] shadow-2xl text-center border-4 border-slate-50 max-w-xs w-full">
+            <h2 class="text-4xl font-black mb-4 text-slate-800 italic uppercase">Game Over</h2>
+            <p id="modal-msg" class="text-slate-500 mb-10 font-bold text-lg"></p>
+            <button id="modal-close" class="w-full bg-slate-800 text-white py-5 rounded-3xl font-black text-xl hover:bg-slate-900 transition-all">
+                TRY AGAIN
+            </button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'triple-threat-v2';
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let board = Array(9).fill(null);
+        let currentTurnIndices = []; // Track indices placed in the current turn
+        let isGameOver = false;
+        let gameState = 'IDLE'; 
+        let removalsLeft = 0;
+        let roundCount = 0;
+
+        const boardEl = document.getElementById('board');
+        const statusBar = document.getElementById('status-bar');
+        const resetBtn = document.getElementById('reset-btn');
+        const logContainer = document.getElementById('log-container');
+        const logPanel = document.getElementById('log-panel');
+        const logArrow = document.getElementById('log-arrow');
+        const toggleLogBtn = document.getElementById('toggle-log');
+        const roundDisplay = document.getElementById('round-display');
+        const modal = document.getElementById('modal');
+        const modalMsg = document.getElementById('modal-msg');
+        const modalClose = document.getElementById('modal-close');
+
+        function log(msg, type = 'info') {
+            const time = new Date().toLocaleTimeString([], { hour12: false, minute: '2-digit', second: '2-digit' });
+            const entry = document.createElement('div');
+            const colors = { info: 'text-slate-400', ai: 'text-green-600', player: 'text-blue-500', danger: 'text-red-500' };
+            entry.className = `${colors[type]} leading-tight`;
+            entry.innerHTML = `<span class="opacity-40 mr-1 text-[9px]">[${time}]</span> ${msg}`;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        async function initGame() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined') { 
+                    await signInWithCustomToken(auth, __initial_auth_token); 
+                } else { 
+                    await signInAnonymously(auth); 
+                }
+                log('System authenticated. Starting game...', 'info');
+                initBoard();
+                // Auto-start the game on load
+                resetGame();
+            } catch (error) {
+                console.error("Initialization failed:", error);
+                log('Initialization error. Please refresh.', 'danger');
+            }
+        }
+
+        function initBoard() {
+            boardEl.innerHTML = '';
+            board.forEach((cell, index) => {
+                const div = document.createElement('div');
+                div.className = 'cell aspect-square flex items-center justify-center cursor-pointer cell-empty';
+                div.dataset.index = index;
+                div.addEventListener('click', () => handleCellClick(index));
+                updateCellUI(div, cell);
+                boardEl.appendChild(div);
+            });
+        }
+
+        function updateCellUI(el, value, stepNum = null) {
+            el.innerHTML = '';
+            el.classList.remove('cell-ai', 'line-win', 'cell-empty', 'permanent');
+            
+            if (value === 'ai') {
+                el.classList.add('cell-ai');
+                // Check if this index was placed in the current turn
+                const isNew = currentTurnIndices.includes(parseInt(el.dataset.index));
+                
+                if (!isNew && gameState === 'PLAYER_REMOVE') {
+                    el.classList.add('permanent'); // Visual style for non-removable pieces
+                }
+
+                if (stepNum !== null) {
+                    const span = document.createElement('span');
+                    span.className = 'ai-step-indicator';
+                    span.textContent = stepNum;
+                    el.appendChild(span);
+                }
+            } else {
+                el.classList.add('cell-empty');
+            }
+        }
+
+        function refreshUI() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, idx) => {
+                // Determine if we should show a step number (only during AI move or right after)
+                let step = null;
+                if (currentTurnIndices.includes(idx)) {
+                    step = currentTurnIndices.indexOf(idx) + 1;
+                }
+                updateCellUI(cell, board[idx], (gameState === 'PLAYER_REMOVE') ? step : null);
+            });
+        }
+
+        function setStatus(text, theme = 'normal') {
+            statusBar.textContent = text;
+            const colors = {
+                danger: 'text-red-500 border-red-100 bg-red-50',
+                warning: 'text-green-600 border-green-100 bg-green-50',
+                normal: 'text-slate-500 border-slate-100 bg-white'
+            };
+            statusBar.className = `glass-card mb-6 p-6 rounded-[2.5rem] text-center font-bold text-lg transition-all border ${colors[theme]}`;
+        }
+
+        function getNeighbors(index) {
+            const row = Math.floor(index / 3);
+            const col = index % 3;
+            const ns = [];
+            for (let r = row - 1; r <= row + 1; r++) {
+                for (let c = col - 1; c <= col + 1; c++) {
+                    if (r >= 0 && r < 3 && c >= 0 && c < 3 && !(r === row && c === col)) {
+                        ns.push(r * 3 + c);
+                    }
+                }
+            }
+            return ns;
+        }
+
+        function getGlobalNeighbors() {
+            const aiIndices = board.map((v, i) => v === 'ai' ? i : null).filter(v => v !== null);
+            const neighborSet = new Set();
+            aiIndices.forEach(idx => {
+                getNeighbors(idx).forEach(n => {
+                    if (board[n] === null) neighborSet.add(n);
+                });
+            });
+            return Array.from(neighborSet);
+        }
+
+        function checkWin() {
+            const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            for (let line of lines) {
+                if (board[line[0]] === 'ai' && board[line[1]] === 'ai' && board[line[2]] === 'ai') return line;
+            }
+            return null;
+        }
+
+        async function handleCellClick(index) {
+            if (isGameOver || gameState !== 'PLAYER_REMOVE') return;
+            
+            if (board[index] === 'ai') {
+                // NEW RULE: Only allow removal if it was placed this turn
+                if (!currentTurnIndices.includes(index)) {
+                    log(`Blocked: Cannot remove old piece at index ${index}.`, 'danger');
+                    setStatus(`Only remove NEW pieces (marked 1, 2, 3)`, 'danger');
+                    return;
+                }
+
+                board[index] = null;
+                removalsLeft--;
+                // Remove from currentTurnIndices so we don't count it twice or render it as "new"
+                currentTurnIndices = currentTurnIndices.filter(i => i !== index);
+                
+                log(`Player removed current-turn piece at ${index}. Remaining: ${removalsLeft}`, 'player');
+                refreshUI();
+                
+                if (removalsLeft > 0) {
+                    setStatus(`Remove ${removalsLeft} more new piece(s)`, 'warning');
+                } else {
+                    log('Removal phase complete. Checking status...', 'info');
+                    const winLine = checkWin();
+                    if (winLine) endGame(winLine);
+                    else startAiTurn();
+                }
+            }
+        }
+
+        async function startAiTurn() {
+            if (isGameOver) return;
+            gameState = 'AI_MOVE';
+            roundCount++;
+            roundDisplay.textContent = `ROUND ${roundCount}`;
+            currentTurnIndices = []; // Reset tracked indices for new turn
+            
+            log(`>>> ROUND ${roundCount}: AI Move Start`, 'ai');
+            setStatus(`Round ${roundCount}: AI deploying...`, 'danger');
+            
+            let targets = [];
+            let emptyCells = board.map((v, idx) => v === null ? idx : null).filter(v => v !== null);
+            
+            const neighbors = getGlobalNeighbors();
+            log(`Calculated Neighbors: [${neighbors.join(', ') || 'None'}]`, 'ai');
+
+            if (neighbors.length > 0) {
+                let pool = [...neighbors].sort(() => Math.random() - 0.5);
+                targets = pool.slice(0, 3);
+                log(`Locking adjacent slots: [${targets.join(', ')}]`, 'ai');
+            }
+
+            while (targets.length < 3 && emptyCells.length > targets.length) {
+                const rest = emptyCells.filter(idx => !targets.includes(idx));
+                const randomPos = rest[Math.floor(Math.random() * rest.length)];
+                targets.push(randomPos);
+                log(`Spreading to random field: [${randomPos}]`, 'ai');
+            }
+
+            for (let i = 0; i < targets.length; i++) {
+                await new Promise(r => setTimeout(r, 600));
+                const pos = targets[i];
+                board[pos] = 'ai';
+                currentTurnIndices.push(pos); // Track this as a removable piece
+                updateCellUI(document.querySelectorAll('.cell')[pos], 'ai', i + 1);
+            }
+
+            gameState = 'PLAYER_REMOVE';
+            // Only count pieces that were actually placed this turn as removable
+            removalsLeft = Math.min(2, currentTurnIndices.length);
+            
+            log(`AI Deployment over. Pieces 1-3 are removable. Required removals: ${removalsLeft}`, 'info');
+            refreshUI(); // Update UI to show permanent vs removable styles
+
+            if (removalsLeft === 0) {
+                // Corner case: board full with no new moves (should not happen in 3x3 with removal)
+                startAiTurn();
+            } else {
+                setStatus(`Defend: Remove ${removalsLeft} NEW piece(s)`, 'warning');
+            }
+        }
+
+        function endGame(winLine) {
+            isGameOver = true;
+            winLine.forEach(idx => document.querySelectorAll('.cell')[idx].classList.add('line-win'));
+            setStatus('Defense Breached - Match Found', 'danger');
+            log(`Game over! Total Rounds Survived: ${roundCount}.`, 'danger');
+            
+            modalMsg.textContent = `You lasted ${roundCount} rounds`;
+
+            const userId = auth.currentUser?.uid || crypto.randomUUID();
+            setDoc(doc(db, `/artifacts/${appId}/public/data/scores/${userId}`), {
+                lastRound: roundCount,
+                timestamp: Date.now()
+            }, { merge: true }).catch(() => {});
+
+            setTimeout(() => modal.classList.remove('hidden'), 800);
+        }
+
+        function resetGame() {
+            roundCount = 0;
+            roundDisplay.textContent = `ROUND 0`;
+            board = Array(9).fill(null);
+            currentTurnIndices = [];
+            isGameOver = false;
+            modal.classList.add('hidden');
+            log('--- Starting New Session ---', 'info');
+            initBoard();
+            startAiTurn();
+        }
+
+        // Toggle system log panel
+        toggleLogBtn.addEventListener('click', () => {
+            const isOpen = logPanel.classList.toggle('open');
+            logArrow.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+            toggleLogBtn.querySelector('span').textContent = isOpen ? 'Hide System Log (Debug)' : 'Show System Log (Debug)';
+        });
+
+        resetBtn.addEventListener('click', resetGame);
+        modalClose.addEventListener('click', resetGame);
+
+        // Bootstrap application
+        initGame();
+    </script>
+</body>
+</html>
