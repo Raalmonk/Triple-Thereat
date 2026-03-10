@@ -146,16 +146,6 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'triple-threat-v2';
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-
         let board = Array(9).fill(null);
         let currentTurnIndices = []; // Track indices placed in the current turn
         let isGameOver = false;
@@ -185,21 +175,11 @@
             logContainer.scrollTop = logContainer.scrollHeight;
         }
 
-        async function initGame() {
-            try {
-                if (typeof __initial_auth_token !== 'undefined') { 
-                    await signInWithCustomToken(auth, __initial_auth_token); 
-                } else { 
-                    await signInAnonymously(auth); 
-                }
-                log('System authenticated. Starting game...', 'info');
-                initBoard();
-                // Auto-start the game on load
-                resetGame();
-            } catch (error) {
-                console.error("Initialization failed:", error);
-                log('Initialization error. Please refresh.', 'danger');
-            }
+        function initGame() {
+            log('System initialized. Starting game...', 'info');
+            initBoard();
+            // Auto-start the game on load
+            resetGame();
         }
 
         function initBoard() {
@@ -382,12 +362,6 @@
             log(`Game over! Total Rounds Survived: ${roundCount}.`, 'danger');
             
             modalMsg.textContent = `You lasted ${roundCount} rounds`;
-
-            const userId = auth.currentUser?.uid || crypto.randomUUID();
-            setDoc(doc(db, `/artifacts/${appId}/public/data/scores/${userId}`), {
-                lastRound: roundCount,
-                timestamp: Date.now()
-            }, { merge: true }).catch(() => {});
 
             setTimeout(() => modal.classList.remove('hidden'), 800);
         }
