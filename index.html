@@ -7,15 +7,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;900&family=JetBrains+Mono&display=swap');
-        
+
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #fdfbf7; /* Beige background */
+            background-color: #fdfbf7; /* 米色背景 */
             user-select: none;
             color: #4a4a4a;
         }
 
-        /* Base cell styling */
+        /* 单元格基础样式 */
         .cell {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
@@ -24,28 +24,28 @@
             border: 2px solid #f0ede4;
         }
 
-        /* Mint green pieces */
+        /* 薄荷绿棋子 */
         .cell-ai {
-            background-color: #e8f5e9 !important; 
-            border: 3px solid #a5d6a7 !important; 
+            background-color: #e8f5e9 !important;
+            border: 3px solid #a5d6a7 !important;
             box-shadow: 0 8px 16px rgba(165, 214, 167, 0.2);
             z-index: 10;
         }
 
-        /* Visual indicator for "old" pieces that cannot be removed */
-        .cell-ai.permanent {
-            background-color: #f1f8f1 !important;
-            border: 3px solid #cfdfcf !important;
-            box-shadow: none;
-            opacity: 0.9;
-        }
+            /* “旧”棋子的视觉样式，不可移除 */
+            .cell-ai.permanent {
+                background-color: #f1f8f1 !important;
+                border: 3px solid #cfdfcf !important;
+                box-shadow: none;
+                opacity: 0.9;
+            }
 
         .cell-empty:hover {
             background-color: #fcfaf2;
             border-color: #e8f5e9;
         }
 
-        /* Victory line */
+        /* 胜利连线 */
         .line-win {
             background-color: #2e7d32 !important;
             border: 4px solid #ffffff !important;
@@ -54,8 +54,15 @@
         }
 
         @keyframes soft-pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.8; transform: scale(0.98); }
+            0%, 100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.8;
+                transform: scale(0.98);
+            }
         }
 
         .ai-step-indicator {
@@ -66,9 +73,14 @@
             opacity: 0.8;
         }
 
-        /* Custom scrollbar hiding */
-        #log-container::-webkit-scrollbar { display: none; }
-        #log-container { scrollbar-width: none; }
+        /* 自定义滚动条隐藏 */
+        #log-container::-webkit-scrollbar {
+            display: none;
+        }
+
+        #log-container {
+            scrollbar-width: none;
+        }
 
         .glass-card {
             background: #ffffff;
@@ -76,48 +88,76 @@
             box-shadow: 0 4px 20px rgba(0,0,0,0.02);
         }
 
-        /* Expansion animation */
+        /* 日志面板展开动画 */
         #log-panel {
             transition: max-height 0.4s ease-out;
             max-height: 0;
             overflow: hidden;
         }
-        #log-panel.open {
-            max-height: 400px;
+
+            #log-panel.open {
+                max-height: 400px;
+            }
+
+        /* 切换开关样式 */
+        .toggle-dot {
+            transition: transform 0.3s ease-in-out;
+        }
+
+        input:checked ~ .toggle-bg {
+            background-color: #a5d6a7;
+        }
+
+        input:checked ~ .toggle-dot {
+            transform: translateX(100%);
         }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-6">
 
     <div class="w-full max-w-lg mx-auto">
-        <!-- Main Interface -->
-        <div class="text-center mb-10">
-            <!-- Large Round Counter -->
+        <!-- 主界面 -->
+        <div class="text-center mb-6">
+            <!-- 回合计数器 -->
             <div class="inline-block px-8 py-3 bg-green-50 rounded-full border-2 border-green-100 mb-4">
                 <span class="text-xs font-black text-green-600 uppercase tracking-[0.2em] block mb-1">Current Progress</span>
                 <span id="round-display" class="text-5xl font-black text-green-700">ROUND 0</span>
             </div>
+
+            <!-- 逻辑切换开关 -->
+            <div class="flex items-center justify-center gap-3 mb-6">
+                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Orthogonal</span>
+                <label for="diag-toggle" class="flex items-center cursor-pointer">
+                    <div class="relative">
+                        <input type="checkbox" id="diag-toggle" class="sr-only">
+                        <div class="toggle-bg block bg-slate-200 w-12 h-7 rounded-full transition-colors"></div>
+                        <div class="toggle-dot absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform"></div>
+                    </div>
+                </label>
+                <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Diagonal</span>
+            </div>
+
             <h1 class="text-2xl font-black tracking-tight text-slate-800 uppercase mt-2">Triple Threat</h1>
-            <p class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Strategic Defense Challenge</p>
+            <p id="mode-text" class="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Orthogonal Spread Edition</p>
         </div>
 
-        <!-- Status Bar -->
+        <!-- 状态栏 -->
         <div id="status-bar" class="glass-card mb-6 p-6 rounded-[2.5rem] text-center font-bold text-lg transition-all text-slate-500">
             Initializing System...
         </div>
 
-        <!-- 3x3 Grid -->
+        <!-- 3x3 棋盘 -->
         <div id="board" class="grid grid-cols-3 gap-5 bg-[#f0ede4] p-6 rounded-[3rem] aspect-square mb-10 shadow-inner">
-            <!-- Generated via JS -->
+            <!-- JS 生成 -->
         </div>
 
-        <!-- Controls -->
+        <!-- 操作区 -->
         <div class="flex flex-col gap-4">
             <button id="reset-btn" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-5 rounded-3xl font-black text-xl transition-all shadow-lg active:scale-95">
                 RESTART GAME
             </button>
-            
-            <!-- Log Toggle -->
+
+            <!-- 日志切换 -->
             <button id="toggle-log" class="text-xs font-bold text-slate-400 hover:text-slate-600 flex items-center justify-center gap-2 transition-colors py-2">
                 <span>Show System Log (Debug)</span>
                 <svg id="log-arrow" xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -126,15 +166,15 @@
             </button>
         </div>
 
-        <!-- Hidden Log Panel -->
+        <!-- 默认隐藏的日志面板 -->
         <div id="log-panel" class="mt-6 bg-white border-2 border-[#f0ede4] rounded-[2rem] shadow-sm">
             <div id="log-container" class="p-6 h-64 overflow-y-auto space-y-2 text-slate-400 font-mono text-[10px]">
-                <!-- Logs here -->
+                <!-- 日志 -->
             </div>
         </div>
     </div>
 
-    <!-- Results Modal -->
+    <!-- 结算弹窗 -->
     <div id="modal" class="fixed inset-0 bg-slate-900/10 backdrop-blur-md flex items-center justify-center hidden z-50">
         <div class="bg-white p-12 rounded-[3.5rem] shadow-2xl text-center border-4 border-slate-50 max-w-xs w-full">
             <h2 class="text-4xl font-black mb-4 text-slate-800 italic uppercase">Game Over</h2>
@@ -147,15 +187,18 @@
 
     <script type="module">
         let board = Array(9).fill(null);
-        let currentTurnIndices = []; // Track indices placed in the current turn
+        let currentTurnIndices = []; // 追踪当前回合放置的索引
         let isGameOver = false;
-        let gameState = 'IDLE'; 
+        let gameState = 'IDLE';
         let removalsLeft = 0;
         let roundCount = 0;
+        let allowDiagonals = false; // 是否允许斜向传播
 
         const boardEl = document.getElementById('board');
         const statusBar = document.getElementById('status-bar');
         const resetBtn = document.getElementById('reset-btn');
+        const diagToggle = document.getElementById('diag-toggle');
+        const modeText = document.getElementById('mode-text');
         const logContainer = document.getElementById('log-container');
         const logPanel = document.getElementById('log-panel');
         const logArrow = document.getElementById('log-arrow');
@@ -175,10 +218,11 @@
             logContainer.scrollTop = logContainer.scrollHeight;
         }
 
+        // 初始化游戏
         function initGame() {
-            log('System initialized. Starting game...', 'info');
+            log('System ready. Initializing interface...', 'info');
             initBoard();
-            // Auto-start the game on load
+            // 默认自动开始第一局
             resetGame();
         }
 
@@ -197,14 +241,14 @@
         function updateCellUI(el, value, stepNum = null) {
             el.innerHTML = '';
             el.classList.remove('cell-ai', 'line-win', 'cell-empty', 'permanent');
-            
+
             if (value === 'ai') {
                 el.classList.add('cell-ai');
-                // Check if this index was placed in the current turn
                 const isNew = currentTurnIndices.includes(parseInt(el.dataset.index));
-                
+
+                // 非本轮新下的棋子在移除阶段显示为固定样式
                 if (!isNew && gameState === 'PLAYER_REMOVE') {
-                    el.classList.add('permanent'); // Visual style for non-removable pieces
+                    el.classList.add('permanent');
                 }
 
                 if (stepNum !== null) {
@@ -221,7 +265,6 @@
         function refreshUI() {
             const cells = document.querySelectorAll('.cell');
             cells.forEach((cell, idx) => {
-                // Determine if we should show a step number (only during AI move or right after)
                 let step = null;
                 if (currentTurnIndices.includes(idx)) {
                     step = currentTurnIndices.indexOf(idx) + 1;
@@ -240,17 +283,36 @@
             statusBar.className = `glass-card mb-6 p-6 rounded-[2.5rem] text-center font-bold text-lg transition-all border ${colors[theme]}`;
         }
 
+        /**
+         * 获取邻居逻辑：支持十字和八向切换
+         */
         function getNeighbors(index) {
             const row = Math.floor(index / 3);
             const col = index % 3;
             const ns = [];
-            for (let r = row - 1; r <= row + 1; r++) {
-                for (let c = col - 1; c <= col + 1; c++) {
-                    if (r >= 0 && r < 3 && c >= 0 && c < 3 && !(r === row && c === col)) {
-                        ns.push(r * 3 + c);
-                    }
-                }
+
+            // 基础方向：上下左右
+            const directions = [
+                { r: -1, c: 0 }, { r: 1, c: 0 },
+                { r: 0, c: -1 }, { r: 0, c: 1 }
+            ];
+
+            // 如果开启斜向
+            if (allowDiagonals) {
+                directions.push(
+                    { r: -1, c: -1 }, { r: -1, c: 1 },
+                    { r: 1, c: -1 }, { r: 1, c: 1 }
+                );
             }
+
+            directions.forEach(dir => {
+                const nr = row + dir.r;
+                const nc = col + dir.c;
+                if (nr >= 0 && nr < 3 && nc >= 0 && nc < 3) {
+                    ns.push(nr * 3 + nc);
+                }
+            });
+
             return ns;
         }
 
@@ -266,7 +328,7 @@
         }
 
         function checkWin() {
-            const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            const lines = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
             for (let line of lines) {
                 if (board[line[0]] === 'ai' && board[line[1]] === 'ai' && board[line[2]] === 'ai') return line;
             }
@@ -275,27 +337,25 @@
 
         async function handleCellClick(index) {
             if (isGameOver || gameState !== 'PLAYER_REMOVE') return;
-            
+
             if (board[index] === 'ai') {
-                // NEW RULE: Only allow removal if it was placed this turn
+                // 仅允许移除本回合新下的棋子
                 if (!currentTurnIndices.includes(index)) {
-                    log(`Blocked: Cannot remove old piece at index ${index}.`, 'danger');
-                    setStatus(`Only remove NEW pieces (marked 1, 2, 3)`, 'danger');
+                    log(`Invalid: Piece at ${index} is permanent.`, 'danger');
+                    setStatus(`Only remove NEW pieces (1, 2, 3)`, 'danger');
                     return;
                 }
 
                 board[index] = null;
                 removalsLeft--;
-                // Remove from currentTurnIndices so we don't count it twice or render it as "new"
                 currentTurnIndices = currentTurnIndices.filter(i => i !== index);
-                
-                log(`Player removed current-turn piece at ${index}. Remaining: ${removalsLeft}`, 'player');
+
+                log(`Player removed turn-piece at ${index}. Remaining: ${removalsLeft}`, 'player');
                 refreshUI();
-                
+
                 if (removalsLeft > 0) {
                     setStatus(`Remove ${removalsLeft} more new piece(s)`, 'warning');
                 } else {
-                    log('Removal phase complete. Checking status...', 'info');
                     const winLine = checkWin();
                     if (winLine) endGame(winLine);
                     else startAiTurn();
@@ -308,47 +368,46 @@
             gameState = 'AI_MOVE';
             roundCount++;
             roundDisplay.textContent = `ROUND ${roundCount}`;
-            currentTurnIndices = []; // Reset tracked indices for new turn
-            
-            log(`>>> ROUND ${roundCount}: AI Move Start`, 'ai');
+            currentTurnIndices = [];
+
+            const modeName = allowDiagonals ? "Diagonal" : "Orthogonal";
+            log(`>>> ROUND ${roundCount}: AI Move (${modeName} Mode)`, 'ai');
             setStatus(`Round ${roundCount}: AI deploying...`, 'danger');
-            
+
             let targets = [];
             let emptyCells = board.map((v, idx) => v === null ? idx : null).filter(v => v !== null);
-            
+
             const neighbors = getGlobalNeighbors();
-            log(`Calculated Neighbors: [${neighbors.join(', ') || 'None'}]`, 'ai');
+            log(`Neighbors found: [${neighbors.join(', ') || 'None'}]`, 'ai');
 
             if (neighbors.length > 0) {
                 let pool = [...neighbors].sort(() => Math.random() - 0.5);
                 targets = pool.slice(0, 3);
-                log(`Locking adjacent slots: [${targets.join(', ')}]`, 'ai');
+                log(`Locking targets: [${targets.join(', ')}]`, 'ai');
             }
 
             while (targets.length < 3 && emptyCells.length > targets.length) {
                 const rest = emptyCells.filter(idx => !targets.includes(idx));
                 const randomPos = rest[Math.floor(Math.random() * rest.length)];
                 targets.push(randomPos);
-                log(`Spreading to random field: [${randomPos}]`, 'ai');
+                log(`No direct neighbors. Spreading: [${randomPos}]`, 'ai');
             }
 
             for (let i = 0; i < targets.length; i++) {
                 await new Promise(r => setTimeout(r, 600));
                 const pos = targets[i];
                 board[pos] = 'ai';
-                currentTurnIndices.push(pos); // Track this as a removable piece
+                currentTurnIndices.push(pos);
                 updateCellUI(document.querySelectorAll('.cell')[pos], 'ai', i + 1);
             }
 
             gameState = 'PLAYER_REMOVE';
-            // Only count pieces that were actually placed this turn as removable
             removalsLeft = Math.min(2, currentTurnIndices.length);
-            
-            log(`AI Deployment over. Pieces 1-3 are removable. Required removals: ${removalsLeft}`, 'info');
-            refreshUI(); // Update UI to show permanent vs removable styles
+
+            log(`AI Finished. Removals required: ${removalsLeft}`, 'info');
+            refreshUI();
 
             if (removalsLeft === 0) {
-                // Corner case: board full with no new moves (should not happen in 3x3 with removal)
                 startAiTurn();
             } else {
                 setStatus(`Defend: Remove ${removalsLeft} NEW piece(s)`, 'warning');
@@ -358,11 +417,10 @@
         function endGame(winLine) {
             isGameOver = true;
             winLine.forEach(idx => document.querySelectorAll('.cell')[idx].classList.add('line-win'));
-            setStatus('Defense Breached - Match Found', 'danger');
-            log(`Game over! Total Rounds Survived: ${roundCount}.`, 'danger');
-            
-            modalMsg.textContent = `You lasted ${roundCount} rounds`;
+            setStatus('Defense Breached - Match Formed', 'danger');
+            log(`Game over! Survived ${roundCount} rounds.`, 'danger');
 
+            modalMsg.textContent = `You lasted ${roundCount} rounds`;
             setTimeout(() => modal.classList.remove('hidden'), 800);
         }
 
@@ -378,17 +436,24 @@
             startAiTurn();
         }
 
-        // Toggle system log panel
+        // 切换日志面板
         toggleLogBtn.addEventListener('click', () => {
             const isOpen = logPanel.classList.toggle('open');
             logArrow.style.transform = isOpen ? 'rotate(180deg)' : 'rotate(0deg)';
             toggleLogBtn.querySelector('span').textContent = isOpen ? 'Hide System Log (Debug)' : 'Show System Log (Debug)';
         });
 
+        // 逻辑切换监听
+        diagToggle.addEventListener('change', (e) => {
+            allowDiagonals = e.target.checked;
+            modeText.textContent = allowDiagonals ? "Diagonal Spread Edition" : "Orthogonal Spread Edition";
+            log(`Logic changed to ${allowDiagonals ? 'Diagonal' : 'Orthogonal'}.`, 'info');
+        });
+
         resetBtn.addEventListener('click', resetGame);
         modalClose.addEventListener('click', resetGame);
 
-        // Bootstrap application
+        // 启动程序
         initGame();
     </script>
 </body>
